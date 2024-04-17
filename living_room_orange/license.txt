@@ -1,0 +1,8 @@
+Model Information:
+* title:	Living Room Orange
+* source:	https://sketchfab.com/3d-models/living-room-orange-3a819e1ed4f1495caedb8961e66a262d
+* author:	WorkingClassGames (https://sketchfab.com/workingclassgames)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works
