@@ -3,6 +3,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/OrbitControls';
 
 
+async function loadScene(path) {
+  const loader = new GLTFLoader();
+  return new Promise((resolve, reject) => {
+    loader.load(path, resolve, undefined, reject);
+  });
+}
+
+async function loadTexture(path) {
+  const loader = new THREE.TextureLoader();
+  return new Promise((resolve, reject) => {
+    loader.load(path, resolve, undefined, reject);
+  });
+}
+
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
@@ -27,102 +41,112 @@ scene.add(axesHelper);
 scene.scale.set(1, 1, 1); // Scale up by a factor of 10
 
 
-async function loadScene(path) {
-  const loader = new GLTFLoader();
 
+function fitTextureToMesh(texture, mesh) {
+  // Calculate the aspect ratios
+  const textureWidth = texture.image.width;
+  const textureHeight = texture.image.height;
+
+  const boundingBox = new THREE.Box3().setFromObject(mesh);
+  const size = new THREE.Vector3();
+  boundingBox.getSize(size);
+
+  const meshWidth = size.x;
+  const meshHeight = size.y;
+
+  const textureRatio = textureWidth / textureHeight;
+  const meshRatio = meshWidth / meshHeight;
+
+  let width, height;
+
+  if (textureRatio > meshRatio) {
+      // Texture is wider
+      width = meshWidth;
+      height = meshWidth / textureRatio;
+  } else {
+      // Texture is taller
+      height = meshHeight;
+      width = meshHeight * textureRatio;
+  }
+  return new THREE.PlaneGeometry(Math.round(width), Math.round(height));
+}
+
+async function liveTexture() {
+  const url = 'https://demo.streamplanet.tv/screens/seinfeld.png';
+  const nocacheURL = `${url}?${new Date().getTime()}`;
+  const loader = new THREE.TextureLoader();
   return new Promise((resolve, reject) => {
-
-    loader.load(
-      path,  // This is the path to your .gltf file.
-      function ( gltf ) {
-        // This function is called when the load is successful
-        // `gltf` is the loaded object that contains the scene.
-    
-        // Adding the loaded scene to your existing scene
-        scene.add( gltf.scene );
-    
-        let tvMesh; // This will hold our TV mesh
-    
-        gltf.scene.traverse((child) => {
-          if (child.isMesh && child.name.includes("TV1_Black001_0")) {  // Adjust the condition to match TV-like names
-            //console.log(child.name, 'Geometry:', child.geometry);
-            //child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  // Apply a bright red material
-            tvMesh = child;
-            const textureLoader = new THREE.TextureLoader();
-            textureLoader.load('jerry.jpg',
-              function(texture) {
-                console.log(texture)
-                const material = new THREE.MeshBasicMaterial({
-                  map: texture
-                });
-                // tvMesh.material = material;
-                // tvMesh.material.needsUpdate = true;
-    
-                const planeGeometry = new THREE.PlaneGeometry(100, 50); // You can adjust the size
-                const planeMesh = new THREE.Mesh(planeGeometry, material);
-                //planeMesh.position.set(0, 50, 0); // Position it so it's clearly visible
-    
-                // reposition to match tv
-                const worldPosition = new THREE.Vector3();
-                tvMesh.getWorldPosition(worldPosition);
-                planeMesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z+2);
-    
-                
-                // Move the plane forward along the local Z-axis of the TV mesh
-                // const offsetDistance = -2; // Distance to offset in front of the TV, adjust as needed
-                // planeMesh.translateZ(-offsetDistance); // Use negative if you need to push it in front depending on the TV's facing direction
-            
-            
-                scene.add(planeMesh); // Add the plane to the scene
-            
-              },
-              undefined,
-              function(error) {
-                console.error('Error loading texture:', error); // This will log if there's an error
-              }
-            );
-    
-          }
-        });
-        resolve(gltf);
-    
-        // Optional: Do any additional operations such as setting the position, starting animations, etc.
-      },
-      undefined,
-      function ( error ) {
-        // This function is called if an error occurs
-        console.log( 'An error happened:', error );
-      }
-    );
+    loader.load(nocacheURL, resolve, undefined, reject);
   });
 }
 
-// path is 'jerry.jpg'
-async function loadTexture(path) {
-  const textureLoader = new THREE.TextureLoader();
 
-  return new Promise((resolve, reject) => {
-    textureLoader.load(path,
-      function(texture) {
-        const material = new THREE.MeshBasicMaterial({
-          map: texture
-        });
+async function textureTheTV(path) {
+  let texture;
 
-        const planeGeometry = new THREE.PlaneGeometry(100, 50); // You can adjust the size
-        const planeMesh = new THREE.Mesh(planeGeometry, material);
-        resolve(planeMesh);
-      },
-      undefined,
-      function(error) {
-        console.error('Error loading texture:', error); // This will log if there's an error
-      }
-    );
+  if (path) {
+    texture = await loadTexture(path);
+  } else {
+    texture = await liveTexture()
+  }
 
+  const material = new THREE.MeshBasicMaterial({ map: texture });
+
+  // find the tv mesh in the gltf scene
+  let tvMesh;
+  const gltfScene = scene.getObjectByName("room_scene");
+  gltfScene.traverse(child => {
+    if (child.isMesh && child.name.includes("TV1_Black001_0")) {
+      //console.log(child.name, 'Geometry:', child.geometry);
+      //child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  // test: apply a bright red material
+      tvMesh = child;        
+    }
   });
+
+
+  // create a mesh to hold the texture 
+  let planeMesh = scene.getObjectByName("plane_mesh");
+  if (!planeMesh) {
+    // fit the tv aspect ratio
+    planeMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.Material());
+    planeMesh.name = "plane_mesh";
+
+    // position just in front of the tv
+    const worldPosition = new THREE.Vector3();
+    const deltaZ = 2;
+    tvMesh.getWorldPosition(worldPosition);
+    planeMesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z + deltaZ);  
+  
+    scene.add(planeMesh);
+  }
+
+  const planeGeometry = fitTextureToMesh(texture, tvMesh);
+  planeMesh.geometry = planeGeometry;
+
+  planeMesh.material = material;
+  scene.needsUpdate = true;
+
 }
 
-loadScene('./living_room_orange/scene.gltf').then(gltf => {})
 
+async function startup() {
+  const gltf = await loadScene('./living_room_orange/scene.gltf')
+  gltf.scene.name = "room_scene";
+  scene.add( gltf.scene );
+
+  await textureTheTV('jerry.jpg');
+
+  setTimeout(textureTheTV, 5000);
+  setInterval(() => {
+    console.log('re-texturing')
+    textureTheTV();
+  }, 15000)
+
+  return "started"
+}
+
+
+startup().then(console.log)
 
 function animate() {
   requestAnimationFrame(animate);
