@@ -10,6 +10,54 @@ async function loadScene(path) {
   });
 }
 
+// Load the LR model, tweak it a little, and setup a plane mesh (to texture the tv)
+// resolve to the plane mesh and a Vector3 of the tv's size
+async function loadLRScene(ath) {
+  const gltf = await loadScene('./living_room_orange/scene.gltf');
+  gltf.scene.name = "room_scene";
+  scene.add( gltf.scene );
+
+  let tvMesh;
+  gltf.scene.traverse(child => {
+    if (child.isMesh) {
+      // for debug: console.log(child.name)
+
+      // grab the tvMesh
+      if (child.name.includes("TV1_Black001_0")) {
+        // for debug:
+        //console.log(child.name, 'Geometry:', child.geometry);
+        //child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  // test: apply a bright red material
+        tvMesh = child;        
+      }
+
+      // restyle the table and credenza with outlines so they pop a little
+      if (child.name.includes("Mesa_Wood_0") || child.name.includes("Mesa_2_Wood_0")) {
+        const edgeGeometry = new THREE.EdgesGeometry(child.geometry);
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x5C4033 });
+        const edgeWireframe = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+        child.add(edgeWireframe);
+      }
+    }
+  });
+
+  const boundingBox = new THREE.Box3().setFromObject(tvMesh);
+  const tvSize = new THREE.Vector3();
+  boundingBox.getSize(tvSize);
+
+  const tvFace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.Material());
+  tvFace.name = "tv_face";
+
+  // position just in front of the tv
+  const worldPosition = new THREE.Vector3();
+  const deltaZ = 2;
+  tvMesh.getWorldPosition(worldPosition);
+  tvFace.position.set(worldPosition.x, worldPosition.y, worldPosition.z + deltaZ);
+
+  scene.add(tvFace);
+  return { tvFace, tvSize };
+}
+
+
 async function loadTexture(path) {
   const loader = new THREE.TextureLoader();
   return new Promise((resolve, reject) => {
@@ -17,7 +65,7 @@ async function loadTexture(path) {
   });
 }
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({antialias: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
@@ -43,32 +91,17 @@ scene.add(directionalLight);
 // scene.scale.set(1, 1, 1); // Scale up by a factor of 10
 
 
-
-function fitTextureToMesh(texture, mesh) {
-  // Calculate the aspect ratios
-  const textureWidth = texture.image.width;
-  const textureHeight = texture.image.height;
-
-  const boundingBox = new THREE.Box3().setFromObject(mesh);
-  const size = new THREE.Vector3();
-  boundingBox.getSize(size);
-
-  const meshWidth = size.x;
-  const meshHeight = size.y;
-
-  const textureRatio = textureWidth / textureHeight;
-  const meshRatio = meshWidth / meshHeight;
+function aspectFit(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+  const sourceAspect = sourceWidth / sourceHeight;
+  const targetAspect = targetWidth / targetHeight;
 
   let width, height;
-
-  if (textureRatio > meshRatio) {
-      // Texture is wider
-      width = meshWidth;
-      height = meshWidth / textureRatio;
+  if (sourceAspect > targetAspect) {
+      width = targetWidth;
+      height = targetWidth / sourceAspect;
   } else {
-      // Texture is taller
-      height = meshHeight;
-      width = meshHeight * textureRatio;
+      height = targetHeight;
+      width = targetHeight * sourceAspect;
   }
   return new THREE.PlaneGeometry(Math.round(width), Math.round(height));
 }
@@ -83,7 +116,7 @@ async function liveTexture() {
 }
 
 
-async function textureTheTV(path) {
+async function textureTVFace(tvFaceInfo, path) {
   let texture;
 
   if (path) {
@@ -93,55 +126,21 @@ async function textureTheTV(path) {
   }
 
   const material = new THREE.MeshBasicMaterial({ map: texture });
-
-  // find the tv mesh in the gltf scene
-  let tvMesh;
-  const gltfScene = scene.getObjectByName("room_scene");
-  gltfScene.traverse(child => {
-    if (child.isMesh && child.name.includes("TV1_Black001_0")) {
-      //console.log(child.name, 'Geometry:', child.geometry);
-      //child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  // test: apply a bright red material
-      tvMesh = child;        
-    }
-  });
-
-
-  // create a mesh to hold the texture 
-  let planeMesh = scene.getObjectByName("plane_mesh");
-  if (!planeMesh) {
-    // fit the tv aspect ratio
-    planeMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.Material());
-    planeMesh.name = "plane_mesh";
-
-    // position just in front of the tv
-    const worldPosition = new THREE.Vector3();
-    const deltaZ = 2;
-    tvMesh.getWorldPosition(worldPosition);
-    planeMesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z + deltaZ);  
-  
-    scene.add(planeMesh);
-  }
-
-  const planeGeometry = fitTextureToMesh(texture, tvMesh);
-  planeMesh.geometry = planeGeometry;
-
-  planeMesh.material = material;
+  const planeGeometry = aspectFit(texture.image.width, texture.image.height, tvFaceInfo.tvSize.x, tvFaceInfo.tvSize.y);
+  tvFaceInfo.tvFace.geometry = planeGeometry;
+  tvFaceInfo.tvFace.material = material;
   scene.needsUpdate = true;
-
 }
 
 
 async function startup() {
-  const gltf = await loadScene('./living_room_orange/scene.gltf')
-  gltf.scene.name = "room_scene";
-  scene.add( gltf.scene );
+  const tvFaceInfo = await loadLRScene()
+  await textureTVFace(tvFaceInfo, 'jerry.jpg');
 
-  await textureTheTV('jerry.jpg');
-
-  setTimeout(textureTheTV, 5000);
+  setTimeout(() => textureTVFace(tvFaceInfo), 5000);
   setInterval(() => {
     console.log('re-texturing')
-    textureTheTV();
+    textureTVFace(tvFaceInfo);
   }, 10000)
 
   return "started"
