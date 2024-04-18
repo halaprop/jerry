@@ -22,10 +22,12 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
 const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 800 );
-camera.position.set( 0, 300, 300 );
-camera.lookAt( 0, 0, 0 );
+camera.position.set( 30, 200, 300 );
+//camera.lookAt( 0, 0, 0 );
 
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(30, 100, -100);
+controls.update();
 
 const scene = new THREE.Scene();
 
@@ -36,9 +38,9 @@ directionalLight.position.set(50, 30, 50);  // Position the light
 directionalLight.castShadow = true;  // Enable shadows
 scene.add(directionalLight);
 
-const axesHelper = new THREE.AxesHelper(500);
-scene.add(axesHelper);
-scene.scale.set(1, 1, 1); // Scale up by a factor of 10
+// const axesHelper = new THREE.AxesHelper(500);
+// scene.add(axesHelper);
+// scene.scale.set(1, 1, 1); // Scale up by a factor of 10
 
 
 
@@ -140,7 +142,7 @@ async function startup() {
   setInterval(() => {
     console.log('re-texturing')
     textureTheTV();
-  }, 15000)
+  }, 10000)
 
   return "started"
 }
