@@ -1,22 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<title>My New Living Room</title>
-		<style>
-			body { margin: 0; }
-		</style>
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@v0.163.0/build/three.module.js",
-          "three/OrbitControls": "https://cdn.jsdelivr.net/npm/three@v0.163.0/examples/jsm/controls/OrbitControls.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.163.0/examples/jsm/"
-        }
+<html>
+
+<head>
+  <title>Meme Jerry</title>
+</head>
+<style>
+  .scrollable-strip {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    position: fixed;
+    top: 5rem;
+    height: 10rem;
+    width: 100%;
+    background-color: yellow;
+    padding: 5px;
+  }
+
+  .scrollable-strip img {
+    margin-right: 5px;
+  }
+</style>
+
+<body>
+  <button id="snap-button" style="
+  position: absolute; 
+  top: 2rem; 
+  left: 2rem; 
+  width: 50px;  /* Adjust the width */
+  height: 50px; /* Adjust the height */
+  background-image: url('play-button.png'); 
+  background-size: cover;
+  background-repeat: no-repeat;
+  border: none;
+  padding: 0;
+  cursor: pointer;">
+  </button>
+  <div id="image-strip" class="scrollable-strip"></div>
+  <!-- <div id="target" style="z-index: 1000; background-color: blue; position: absolute; top: 7rem; left: 2rem; width: 160px; height: 90px;">Crap</div> -->
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@v0.163.0/build/three.module.js",
+        "three/OrbitControls": "https://cdn.jsdelivr.net/npm/three@v0.163.0/examples/jsm/controls/OrbitControls.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.163.0/examples/jsm/"
       }
-    </script>
-	</head>
-	<body>
-		<script type="module" src="./main.js"></script>
-	</body>
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.3.5/hls.min.js"></script>
+  <script defer type="module" src="index.mjs"></script>
+</body>
+
 </html>
