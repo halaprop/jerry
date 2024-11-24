@@ -113,50 +113,9 @@ async function setupVideo() {
   });
 }
 
-setupVideo().then(start)
-
-const maxImages = 20;
-const imageStrip = document.getElementById('image-strip');
-
-function addImageToStrip(src) {
-    const img = document.createElement('img');
-    img.src = src;
-    imageStrip.appendChild(img);
-    
-    if (imageStrip.children.length > maxImages) {
-        imageStrip.removeChild(imageStrip.firstChild);
-    }
-}
+setupVideo().then(start);
 
 const snapButton = document.getElementById('snap-button');
-const target = document.getElementById('target');
-const frames = [];
-const pollInterval = 1000; // Poll every second
-
-function pollVideoFrame() {
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const image = canvas.toDataURL('image/png');
-    frames.push(image);
-    addImageToStrip(image)
-    if (frames.length > 10) frames.shift();
-}
-
-function displayFrame() {
-  if (frames.length < 10) return;
-  const img = document.createElement('img');
-  img.src = frames[0]; // Frame from 10 seconds ago
-  img.style.width = '100%';
-  img.style.height = '100%';
-  target.innerHTML = '';
-  target.appendChild(img);
-}
-
 snapButton.addEventListener('click', event => {
   video.play();
 });
-
-setInterval(pollVideoFrame, pollInterval);
